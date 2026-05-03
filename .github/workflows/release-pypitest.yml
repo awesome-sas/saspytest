@@ -1,0 +1,93 @@
+# PyPI Release Workflow
+
+name: Release to PyPI (TEST)
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Exact immutable release tag to publish, for example v1.0.0
+        required: true
+        type: string
+
+jobs:
+  pypi-publish:
+    name: Upload release to PyPI
+    runs-on: ubuntu-latest
+    environment:
+      name: test-pypi
+      url: https://test.pypi.org/project/saspytest/
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Verify release tag and package version
+        env:
+          RELEASE_REF: ${{ inputs.ref }}
+        run: |
+          case "$RELEASE_REF" in
+            v*) ;;
+            *) echo "Release ref must be a version tag beginning with v"; exit 1 ;;
+          esac
+          checked_out_tag="$(git describe --tags --exact-match HEAD)"
+          test "$checked_out_tag" = "$RELEASE_REF"
+          expected_version="${RELEASE_REF#v}"
+          actual_version="$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")"
+          test "$actual_version" = "$expected_version"
+          grep -Eq "^##[[:space:]]+${expected_version}([[:space:]]|$)" CHANGELOG.md
+
+      - name: Install development dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Check code and style
+        run: python scripts/check_code.py
+
+      - name: Build package
+        run: python -m build
+
+      - name: Check distribution metadata
+        run: python -m twine check dist/*
+
+      - name: Install wheel in a clean environment
+        run: |
+          python -m venv "$RUNNER_TEMP/saspytest-wheel-env"
+          "$RUNNER_TEMP/saspytest-wheel-env/bin/python" -m pip install --upgrade pip
+          wheel="$(find dist -maxdepth 1 -type f -name '*.whl' -print -quit)"
+          "$RUNNER_TEMP/saspytest-wheel-env/bin/python" -m pip install "$wheel"
+          "$RUNNER_TEMP/saspytest-wheel-env/bin/python" -m pip install pytest-mock
+
+      - name: Run unit tests from installed wheel
+        run: "$RUNNER_TEMP/saspytest-wheel-env/bin/python -m pytest -c pytest.ini -v"
+
+      - name: Install source distribution in a clean environment
+        run: |
+          python -m venv "$RUNNER_TEMP/saspytest-sdist-env"
+          "$RUNNER_TEMP/saspytest-sdist-env/bin/python" -m pip install --upgrade pip
+          sdist="$(find dist -maxdepth 1 -type f -name '*.tar.gz' -print -quit)"
+          "$RUNNER_TEMP/saspytest-sdist-env/bin/python" -m pip install "$sdist"
+          "$RUNNER_TEMP/saspytest-sdist-env/bin/python" -m pip install pytest-mock
+
+      - name: Run unit tests from installed source distribution
+        run: "$RUNNER_TEMP/saspytest-sdist-env/bin/python -m pytest -c pytest.ini -v"
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: dist
+          path: dist/
+
+      - name: Publish package distributions to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/

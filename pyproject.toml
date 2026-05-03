@@ -1,0 +1,71 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "saspytest"
+version = "1.0.0"
+description = "pytest support library for SAS testing with saspy"
+readme = "docs/README.md"
+requires-python = ">=3.11"
+license = "MIT"
+authors = [
+    {name = "Andreas Menrath"},
+]
+keywords = ["sas", "testing", "pytest", "saspy", "unittest", "assertions"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Testing",
+    "Topic :: Software Development :: Quality Assurance",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+dependencies = [
+    "saspy>=5.0.0",
+    "pytest>=6.0.0",
+    "pandas>=3.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=6.0.0",
+    "pytest-mock",
+    "black",
+    "flake8",
+    "pylint",
+    "mypy",
+    "build",
+    "twine",
+]
+
+[project.urls]
+Homepage = "https://github.com/awesome-sas/saspytest"
+Documentation = "https://github.com/awesome-sas/saspytest/tree/main/docs"
+"Bug Reports" = "https://github.com/awesome-sas/saspytest/issues"
+Source = "https://github.com/awesome-sas/saspytest"
+
+[project.entry-points.pytest11]
+saspytest = "saspytest.session"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/saspytest"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "src/saspytest/",
+    "docs/",
+    "LICENSE",
+    "pyproject.toml",
+    "README.md",
+    "CHANGELOG.md",
+    "CONTRIBUTING.md",
+    "CODE_OF_CONDUCT.md",
+    "SECURITY.md",
+]
+
+[tool.black]
+line-length = 100
+target-version = ['py311', 'py312', 'py313']

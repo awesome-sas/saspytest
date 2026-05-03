@@ -1,0 +1,35 @@
+[MASTER]
+# Use multiple processes to speed up Pylint.
+jobs=0
+
+[MESSAGES CONTROL]
+# Disable the message, report, category or checker with the given id(s).
+disable=
+    C0103,  # invalid-name (too strict for short variables like df, x)
+    C0114,  # missing-module-docstring
+    C0115,  # missing-class-docstring
+    C0116,  # missing-function-docstring
+    R0903,  # too-few-public-methods
+    R0913,  # too-many-arguments
+    R0914,  # too-many-locals
+    R0915,  # too-many-statements
+    R0917,  # too-many-positional-arguments
+    W0511,  # fixme (allow TODO/FIXME comments)
+
+[FORMAT]
+# Maximum number of characters on a single line.
+max-line-length=100
+
+[DESIGN]
+# Maximum number of arguments for function / method.
+max-args=10
+# Maximum number of attributes for a class.
+max-attributes=15
+# Maximum number of public methods for a class.
+max-public-methods=30
+
+[REPORTS]
+# Set the output format.
+output-format=text
+# Tells whether to display a full report or only the messages.
+reports=no
