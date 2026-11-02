@@ -5,6 +5,7 @@ This module provides assertion functions for validating SAS datasets,
 libraries, and data structures.
 """
 
+import math
 from typing import Any, List, Optional
 import uuid
 
@@ -260,11 +261,13 @@ def assert_datasets_equal(
     libref1: str = "WORK",
     libref2: str = "WORK",
     msg: Optional[str] = None,
+    *,
+    criterion: Optional[float] = None,
 ) -> None:
     """
     Assert that two datasets are equal (same data and structure).
 
-    Uses PROC COMPARE to check for differences.
+    Uses PROC COMPARE to check for differences and report mismatched values.
 
     Args:
         sas: SAS session instance
@@ -273,9 +276,13 @@ def assert_datasets_equal(
         libref1: Library for first dataset (default: WORK)
         libref2: Library for second dataset (default: WORK)
         msg: Optional custom error message
+        criterion: Optional finite, non-negative absolute tolerance for numeric
+            values. None preserves SAS's default comparison method and criterion.
+            Zero requests exact numeric comparison.
 
     Raises:
         AssertionError: If datasets are different
+        ValueError: If criterion is not a finite, non-negative number
 
     Example:
         >>> sas.submit("data test1; x=1; run; data test2; x=1; run;")
@@ -285,6 +292,17 @@ def assert_datasets_equal(
     validate_sas_identifier(dataset2, "dataset2")
     validate_sas_identifier(libref1, "libref1", max_length=8)
     validate_sas_identifier(libref2, "libref2", max_length=8)
+    comparison_options = ""
+    if criterion is not None:
+        if isinstance(criterion, bool) or not isinstance(criterion, (int, float)) or criterion < 0:
+            raise ValueError("criterion must be a finite, non-negative number")
+        try:
+            numeric_criterion = float(criterion)
+        except OverflowError as exc:
+            raise ValueError("criterion must be a finite, non-negative number") from exc
+        if not math.isfinite(numeric_criterion):
+            raise ValueError("criterion must be a finite, non-negative number")
+        comparison_options = f"method=absolute criterion={numeric_criterion!r}"
     exists1_name = _temporary_name("DSEXIST")
     exists2_name = _temporary_name("DSEXIST")
     diff_name = _temporary_name("DIFF")
@@ -295,13 +313,14 @@ def assert_datasets_equal(
         %if &{exists1_name} = 1 and &{exists2_name} = 1 %then %do;
             proc compare base={libref1}.{dataset1}
                          compare={libref2}.{dataset2}
-                         out={diff_name} outnoequal outbase outcomp;
+                         out={diff_name} outnoequal outbase outcomp
+                         listall {comparison_options};
             run;
 
             %let {sysinfo_name} = &sysinfo;
         %end;
     """
-    sas.submit(code)
+    result = sas.submit(code, results="TEXT")
     exists1 = _required_macro_value(sas, exists1_name, f"whether {libref1}.{dataset1} exists", msg)
     if exists1 != "1":
         raise AssertionError(msg or _dataset_missing_message(dataset1, libref1))
@@ -318,14 +337,25 @@ def assert_datasets_equal(
             msg or f"SAS returned an invalid PROC COMPARE SYSINFO value: {sysinfo_value!r}"
         ) from exc
 
-    if msg is None:
-        msg = (
-            f"Datasets {libref1}.{dataset1} and {libref2}.{dataset2} "
-            f"are not equal (SYSINFO={sysinfo})"
+    if sysinfo != 0:
+        summary = (
+            msg
+            if msg is not None
+            else (
+                f"Datasets {libref1}.{dataset1} and {libref2}.{dataset2} "
+                f"are not equal (SYSINFO={sysinfo})"
+            )
         )
-
-    # SYSINFO=0 means datasets are equal
-    assert sysinfo == 0, msg
+        if criterion is not None:
+            summary += f"\nNumeric comparison: absolute criterion={numeric_criterion!r}"
+        listing = result["LST"].strip()
+        if listing:
+            detail = f"PROC COMPARE diagnostics:\n{listing}"
+        else:
+            detail = (
+                "SAS returned no PROC COMPARE listing. Submission log:\n" + result["LOG"].strip()
+            )
+        raise AssertionError(f"{summary}\n{detail}")
 
 
 def get_dataset_as_df(sas: saspy.SASsession, dataset: str, libref: str = "WORK") -> Any:

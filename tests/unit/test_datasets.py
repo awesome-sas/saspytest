@@ -169,6 +169,10 @@ class TestAssertColumnsExist:
 
 
 class TestAssertDatasetsEqual:
+    @pytest.fixture(autouse=True)
+    def _comparison_result(self, mock_sas):
+        mock_sas.submit.return_value = {"LOG": "Comparison completed.", "LST": ""}
+
     def test_equal(self, mock_sas):
         mock_sas.symget.side_effect = ["1", "1", "0"]
         assert_datasets_equal(mock_sas, "ds1", "ds2")
@@ -216,6 +220,61 @@ class TestAssertDatasetsEqual:
             assert_datasets_equal(mock_sas, "ds1", "ds2", libref1="TOO_LONG1")
 
         mock_sas.submit.assert_not_called()
+
+    @pytest.mark.parametrize("criterion", [0, 0.001, 2, 1e-12])
+    def test_absolute_criterion(self, mock_sas, criterion):
+        mock_sas.symget.side_effect = ["1", "1", "0"]
+        assert_datasets_equal(mock_sas, "ds1", "ds2", criterion=criterion)
+
+        submitted = mock_sas.submit.call_args.args[0]
+        assert f"method=absolute criterion={float(criterion)!r}" in submitted
+        assert mock_sas.submit.call_args.kwargs == {"results": "TEXT"}
+
+    def test_default_preserves_sas_numeric_comparison(self, mock_sas):
+        mock_sas.symget.side_effect = ["1", "1", "0"]
+        assert_datasets_equal(mock_sas, "ds1", "ds2", "WORK", "USER", "custom")
+
+        submitted = mock_sas.submit.call_args.args[0]
+        assert "method=" not in submitted
+        assert "criterion=" not in submitted
+        assert "compare=USER.ds2" in submitted
+
+    @pytest.mark.parametrize(
+        "criterion",
+        [-1, float("nan"), float("inf"), float("-inf"), True, "0.01", "1; run;", 10**1000],
+    )
+    def test_rejects_invalid_criterion(self, mock_sas, criterion):
+        with pytest.raises(ValueError, match="criterion.*finite, non-negative"):
+            assert_datasets_equal(mock_sas, "ds1", "ds2", criterion=criterion)
+        mock_sas.submit.assert_not_called()
+
+    @pytest.mark.parametrize("msg", [None, "custom comparison failure"])
+    def test_failure_includes_values_and_observation_diagnostics(self, mock_sas, msg):
+        mock_sas.symget.side_effect = ["1", "1", "4096"]
+        listing = "Variable amount\nObs     Base     Compare\n1       1.25     1.50"
+        mock_sas.submit.return_value = {"LOG": "Current log", "LST": listing}
+
+        with pytest.raises(AssertionError) as error:
+            assert_datasets_equal(mock_sas, "ds1", "ds2", msg=msg, criterion=0.01)
+
+        message = str(error.value)
+        assert (msg or "not equal (SYSINFO=4096)") in message
+        assert "absolute criterion=0.01" in message
+        assert listing in message
+        assert "listall" in mock_sas.submit.call_args.args[0]
+        mock_sas.saslog.assert_not_called()
+        mock_sas.sd2df.assert_not_called()
+
+    def test_missing_listing_reports_current_submission_log(self, mock_sas):
+        mock_sas.symget.side_effect = ["1", "1", "32768"]
+        mock_sas.submit.return_value = {"LOG": "ERROR: comparison failed", "LST": " \n"}
+
+        with pytest.raises(AssertionError, match="no PROC COMPARE listing") as error:
+            assert_datasets_equal(mock_sas, "ds1", "ds2")
+
+        assert "SYSINFO=32768" in str(error.value)
+        assert "ERROR: comparison failed" in str(error.value)
+        mock_sas.saslog.assert_not_called()
 
 
 class TestGetDatasetAsDf:

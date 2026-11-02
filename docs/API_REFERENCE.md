@@ -407,7 +407,7 @@ Assert that specific columns exist in a dataset.
 assert_columns_exist(sas, "mydata", ["id", "name", "age"])
 ```
 
-#### `assert_datasets_equal(sas, dataset1, dataset2, libref1="WORK", libref2="WORK", msg=None)`
+#### `assert_datasets_equal(sas, dataset1, dataset2, libref1="WORK", libref2="WORK", msg=None, *, criterion=None)`
 Assert that two datasets are equal using PROC COMPARE.
 
 The assertion passes only when the submitted `PROC COMPARE` sets `SYSINFO` to
@@ -416,8 +416,25 @@ dataset metadata or labels, variable presence or attributes, observation data,
 or comparison/BY-group structure reported by SAS. The helper does not ignore
 any PROC COMPARE difference categories.
 
+**Numeric tolerance:** Pass `criterion` as a keyword to use SAS
+`METHOD=ABSOLUTE CRITERION=...`. Nonmissing numeric values are equal when
+`abs(base - compare) <= criterion`. The criterion must be a finite, non-negative
+Python `int` or `float` (not a boolean); invalid values raise `ValueError` before
+SAS submission. `criterion=0` requests exact numeric equality. Omitting the
+criterion (or passing `None`) preserves SAS's default numeric comparison.
+Character values, missing values, and structural differences are not relaxed.
+
+**Diagnostics:** Failures include the plain-text PROC COMPARE report, identifying
+unequal variables, observation numbers, base and comparison values, and structural
+differences. A custom `msg` replaces the summary but retains the diagnostics.
+SAS's default report limits apply (50 differences per variable per BY group,
+500 total); the assertion still checks the entire comparison. If SAS produces no
+listing, the failure explicitly reports this and includes only the current
+submission's log.
+
 ```python
 assert_datasets_equal(sas, "SASPYTEST_ORIGINAL", "SASPYTEST_COPY")
+assert_datasets_equal(sas, "SASPYTEST_EXPECTED", "SASPYTEST_ACTUAL", criterion=0.001)
 ```
 
 #### `get_dataset_as_df(sas, dataset, libref="WORK")`

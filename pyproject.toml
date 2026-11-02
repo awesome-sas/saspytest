@@ -27,6 +27,7 @@ dependencies = [
     "saspy>=5.0.0",
     "pytest>=6.0.0",
     "pandas>=3.0.0",
+    "pytest-mock>=3.17.0",
 ]
 
 [project.optional-dependencies]

@@ -538,6 +538,27 @@ assert_datasets_equal(
 )
 ```
 
+To allow small absolute differences in numeric values:
+
+```python
+assert_datasets_equal(
+    sas_session,
+    "SASPYTEST_EXPECTED", "SASPYTEST_ACTUAL",
+    criterion=0.001,
+)
+```
+
+Here, numeric differences up to and including `0.001` are accepted. The criterion
+must be finite and non-negative; `0` requests exact numeric comparison. Without
+`criterion`, existing SAS comparison behavior is unchanged. Character values,
+missing values, and dataset structure must still match.
+
+Failures include PROC COMPARE diagnostics showing variable names, observation
+numbers, and the base and comparison values, even with a custom `msg`. SAS limits
+the displayed differences to 50 per variable per BY group and 500 total, but all
+values are still compared. See the [API reference](API_REFERENCE.md#assert_datasets_equalsas-dataset1-dataset2-libref1work-libref2work-msgnone--criterionnone)
+for details.
+
 ### Converting to pandas
 
 Pull a SAS dataset into a pandas DataFrame for further analysis:

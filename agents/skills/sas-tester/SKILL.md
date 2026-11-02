@@ -269,7 +269,7 @@ test artifacts but does not reset SYSCC or SYSERR.
 | `assert_dataset_not_exists(sas, dataset, libref="WORK", msg=None)` | Assert dataset does not exist |
 | `assert_record_count(sas, dataset, expected_count, libref="WORK", msg=None)` | Assert number of observations |
 | `assert_columns_exist(sas, dataset, columns, libref="WORK", msg=None)` | Assert specific columns exist |
-| `assert_datasets_equal(sas, dataset1, dataset2, libref1="WORK", libref2="WORK", msg=None)` | Assert datasets are identical (PROC COMPARE) |
+| `assert_datasets_equal(sas, dataset1, dataset2, libref1="WORK", libref2="WORK", msg=None, *, criterion=None)` | Compare datasets with optional absolute numeric tolerance and mismatch diagnostics (PROC COMPARE) |
 | `get_dataset_as_df(sas, dataset, libref="WORK")` | Return dataset as pandas DataFrame |
 
 ### Macro Assertions (`saspytest.macros`)

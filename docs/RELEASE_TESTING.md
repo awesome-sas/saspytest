@@ -187,6 +187,22 @@ pip install -e ".[dev]"
 pytest tests/integration/ -v
 ```
 
+### Dataset comparison gate
+
+Changes to numeric tolerance or comparison diagnostics require live-SAS coverage
+in addition to mock-based unit tests. On the sanctioned SAS target, run:
+
+```bash
+python -m pytest -c pytest.ini tests/integration/test_dataset_helpers.py -v
+```
+
+This gate checks the inclusive absolute tolerance boundary, exact comparison with
+zero tolerance, preservation of character/missing/structural differences, and
+numeric and character mismatch reports with observation numbers and both values.
+If SAS is unavailable locally, document the setup failure in the pull request and
+keep this external gate pending; do not substitute skips for passing integration
+tests. This focused check does not replace the full release suite.
+
 ### Run the full test suite (unit + integration + examples)
 
 ```bash
