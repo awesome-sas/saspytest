@@ -115,7 +115,7 @@ def test_example(sas_session):
 - `assert_library_exists(sas, libref, msg=None)`
 - `assert_record_count(sas, dataset, expected_count, libref="WORK", msg=None)`
 - `assert_columns_exist(sas, dataset, columns, libref="WORK", msg=None)`
-- `assert_datasets_equal(sas, dataset1, dataset2, libref1="WORK", libref2="WORK", msg=None)`
+- `assert_datasets_equal(sas, dataset1, dataset2, libref1="WORK", libref2="WORK", msg=None, *, criterion=None)`
 - `get_dataset_as_df(sas, dataset, libref="WORK")`
 
 ## Benefits
